@@ -1,6 +1,3 @@
--- CreateEnum
-CREATE TYPE "DefinedTypeName" AS ENUM ('dataset');
-
 -- CreateTable
 CREATE TABLE "Item" (
     "id" SERIAL NOT NULL,
@@ -34,7 +31,7 @@ CREATE TABLE "Item" (
     "published_date" TIMESTAMP(3) NOT NULL,
     "thumb" TEXT NOT NULL,
     "defined_type" INTEGER NOT NULL,
-    "defined_type_name" "DefinedTypeName" NOT NULL,
+    "defined_type_name" TEXT NOT NULL,
     "group_id" INTEGER NOT NULL,
     "url_private_api" TEXT NOT NULL,
     "url_public_api" TEXT NOT NULL,

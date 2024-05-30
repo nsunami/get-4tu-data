@@ -52,7 +52,7 @@ model Item {
   published_date              DateTime
   thumb                       String
   defined_type                Int
-  defined_type_name           DefinedTypeName
+  defined_type_name           String
   group_id                    Int
   url_private_api             String
   url_public_api              String
@@ -94,10 +94,6 @@ model CustomField {
   name  String
   value String[]
   items Item[]
-}
-
-enum DefinedTypeName {
-  dataset
 }
 
 model EmbargoOption {
