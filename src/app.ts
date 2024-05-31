@@ -77,6 +77,7 @@ async function main() {
       data: { ...inputData, doi: i.doi as string },
     })
   })
+  await Promise.all(createdItems)
 }
 
 main()
@@ -87,4 +88,8 @@ main()
     console.error(e)
     await db.$disconnect()
     process.exit(1)
+  })
+  .finally(() => {
+    console.log("✅ Done!")
+    process.exit(0)
   })
