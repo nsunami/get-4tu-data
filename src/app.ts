@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client"
+import type { ItemDetails } from "./types/ItemDetails"
+import type { ItemSummary } from "./types/ItemSummary"
+import { getInputData } from "./utils/converters"
 const db = new PrismaClient()
 async function main() {
   const DEFAULT_LIMIT = 999
@@ -16,9 +19,9 @@ async function main() {
 
   console.log(url)
 
-  const items = await fetch(url, { signal: controller.signal }).then((res) =>
+  const items = (await fetch(url, { signal: controller.signal }).then((res) =>
     res.json()
-  )
+  )) as ItemSummary[]
 
   if (items.length < DEFAULT_LIMIT) {
     console.log(
@@ -34,69 +37,46 @@ async function main() {
     "For each item, fetching detailed metadata & pushing to the database..."
   )
 
-  await items.forEach(async (i: any) => {
-    if (i == null || i.url_public_api == null) return
+  const itemsWithoutEmbargoes = items.filter((item) => !item.embargo_title)
+  const embargoedItems = items.filter((item) => item.embargo_title)
+  console.log(
+    `🥷 There are ${embargoedItems.length} embargoed items. Filtering out...`
+  )
 
-    console.log("Processing Item: ", i.doi)
+  const itemsInDatabase = await db.item.findMany({
+    where: { doi: { in: itemsWithoutEmbargoes.map((i) => i.doi) as string[] } },
+  })
+
+  console.log(
+    itemsInDatabase.length,
+    "items are already in the database -- skipping them..."
+  )
+
+  const newItems = itemsWithoutEmbargoes.filter((item) => {
+    const existingDois = itemsInDatabase.map((i) => i.doi)
+    return !existingDois.includes(item.doi as string)
+  })
+  console.log(newItems.length, "new items are found.")
+
+  const createdItems = newItems.map(async (i, index) => {
+    process.stdout.write("\r\x1b[K")
+    process.stdout.write(
+      `Processing Item ${index + 1} / ${newItems.length}: ${i.doi}\n`
+    )
 
     const detailsController = new AbortController()
-    const { id, ...itemDetails } = await fetch(i.url_public_api, {
+    const itemDetailsWithId: ItemDetails = await fetch(i.url_public_api, {
       signal: detailsController.signal,
     }).then((res) => res.json())
 
-    const inputData = {
-      ...itemDetails,
-      authors: {
-        create: [...itemDetails.authors].map(removeId),
-      },
-      categories: {
-        create: [...itemDetails.categories].map(removeId),
-      },
-      files: {
-        create: [...itemDetails.files].map(removeId),
-      },
-      custom_fields: {
-        create: [...itemDetails.custom_fields].map(removeId).map((e) => {
-          if (Array.isArray(e.value)) return { ...e }
-          return { ...e, value: [e.value] }
-        }),
-      },
-      funding_list: {
-        create: [...itemDetails.funding_list].map(removeId),
-      },
-      created_date: new Date(itemDetails.created_date),
-      modified_date: new Date(itemDetails.modified_date),
-      license: {
-        create: itemDetails.license,
-      },
-      embargo_options: {
-        create: itemDetails.embargo_options,
-      },
-      published_date: new Date(itemDetails.published_date),
-      timeline: {
-        create: {
-          ...itemDetails.timeline,
-          posted: new Date(itemDetails.timeline.posted),
-          firstOnline: new Date(itemDetails.timeline.firstOnline),
-          publisherPublication: new Date(
-            itemDetails.timeline.publisherPublication
-          ),
-        },
-      },
-      embargo_date: new Date(itemDetails.embargo_date),
-    }
+    const { id, ...itemDetails } = itemDetailsWithId
 
-    function removeId(e: any) {
-      const { id, ...rest } = e
-      return rest
-    }
+    const inputData = getInputData(itemDetails)
 
-    await db.item.upsert({
-      where: { doi: inputData.doi },
-      update: {},
-      create: inputData,
-    })
+    return await db.item.create({ data: inputData })
   })
+
+  return (await Promise.all(createdItems)).map((item) => console.log(item?.doi))
 }
 
 main()
