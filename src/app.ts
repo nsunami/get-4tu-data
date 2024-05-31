@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client")
+import { PrismaClient } from "@prisma/client"
 const db = new PrismaClient()
 async function main() {
   const DEFAULT_LIMIT = 999
@@ -6,14 +6,19 @@ async function main() {
     GENERAL: 28589,
     STUDENTS: 28631,
   }
+
   console.log(`Preparing to fetch up to ${DEFAULT_LIMIT} items...`)
+
   const controller = new AbortController()
-  const items = await fetch(
-    `https://data.4tu.nl/v3/datasets?group_ids=${Object.values(
-      TUE_GROUPS
-    ).toString()}&order=published_date&order_direction=desc&item_type=3&limit=${DEFAULT_LIMIT}`,
-    { signal: controller.signal }
-  ).then((res) => res.json())
+  const url = `https://data.4tu.nl/v3/datasets?group_ids=${Object.values(
+    TUE_GROUPS
+  ).toString()}&order=published_date&order_direction=desc&limit=${DEFAULT_LIMIT}`
+
+  console.log(url)
+
+  const items = await fetch(url, { signal: controller.signal }).then((res) =>
+    res.json()
+  )
 
   if (items.length < DEFAULT_LIMIT) {
     console.log(
@@ -29,8 +34,11 @@ async function main() {
     "For each item, fetching detailed metadata & pushing to the database..."
   )
 
-  await items.forEach(async (i) => {
+  await items.forEach(async (i: any) => {
     if (i == null || i.url_public_api == null) return
+
+    console.log("Processing Item: ", i.doi)
+
     const detailsController = new AbortController()
     const { id, ...itemDetails } = await fetch(i.url_public_api, {
       signal: detailsController.signal,
@@ -78,17 +86,17 @@ async function main() {
       embargo_date: new Date(itemDetails.embargo_date),
     }
 
-    function removeId(e) {
+    function removeId(e: any) {
       const { id, ...rest } = e
       return rest
     }
+
     await db.item.upsert({
       where: { doi: inputData.doi },
       update: {},
       create: inputData,
     })
   })
-  console.log("✅Done pushing to the database")
 }
 
 main()
