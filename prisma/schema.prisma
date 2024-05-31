@@ -1,11 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -15,13 +10,9 @@ datasource db {
 
 model Item {
   id                          Int             @id @default(autoincrement())
-  files                       File[]
-  custom_fields               CustomField[]
-  authors                     Author[]
   figshare_url                String?
   description                 String
   funding                     String?
-  funding_list                FundingList[]
   version                     Int
   status                      String?
   size                        BigInt?
@@ -32,9 +23,7 @@ model Item {
   is_metadata_record          Boolean
   confidential_reason         String?
   metadata_reason             String?
-  license                     License         @relation(fields: [licenseId], references: [id])
   tags                        String[]
-  categories                  Category[]
   references                  String[]
   has_linked_file             Boolean
   citation                    String?
@@ -43,7 +32,6 @@ model Item {
   embargo_type                String?
   embargo_title               String?
   embargo_reason              String?
-  embargo_options             EmbargoOption[]
   uuid                        String
   title                       String
   doi                         String          @unique
@@ -58,13 +46,20 @@ model Item {
   url_public_api              String
   url_private_html            String
   url_public_html             String
-  timeline                    Timeline        @relation(fields: [timelineId], references: [id])
   resource_title              String
   resource_doi                String
   agreed_to_deposit_agreement Boolean
   agreed_to_publish           Boolean
   licenseId                   Int
   timelineId                  Int
+  license                     License         @relation(fields: [licenseId], references: [id])
+  timeline                    Timeline        @relation(fields: [timelineId], references: [id])
+  authors                     Author[]        @relation("AuthorToItem")
+  categories                  Category[]      @relation("CategoryToItem")
+  custom_fields               CustomField[]   @relation("CustomFieldToItem")
+  embargo_options             EmbargoOption[] @relation("EmbargoOptionToItem")
+  files                       File[]          @relation("FileToItem")
+  funding_list                FundingList[]   @relation("FundingListToItem")
 }
 
 model Author {
@@ -74,7 +69,7 @@ model Author {
   is_active Boolean?
   url_name  String?
   orcid_id  String?
-  items     Item[]
+  items     Item[]   @relation("AuthorToItem")
 }
 
 model Category {
@@ -86,20 +81,20 @@ model Category {
   path        String
   source_id   Int?
   taxonomy_id Int?
-  items       Item[]
+  items       Item[]  @relation("CategoryToItem")
 }
 
 model CustomField {
   id    Int      @id @default(autoincrement())
   name  String
   value String[]
-  items Item[]
+  items Item[]   @relation("CustomFieldToItem")
 }
 
 model EmbargoOption {
   id    Int    @id @default(autoincrement())
   type  String
-  items Item[]
+  items Item[] @relation("EmbargoOptionToItem")
 }
 
 model File {
@@ -112,7 +107,7 @@ model File {
   download_url  String
   supplied_md5  String?
   computed_md5  String
-  items         Item[]
+  items         Item[]  @relation("FileToItem")
 }
 
 model FundingList {
@@ -123,7 +118,7 @@ model FundingList {
   funder_name     String?
   is_user_defined Int?
   url             String?
-  items           Item[]
+  items           Item[]  @relation("FundingListToItem")
 }
 
 model License {
