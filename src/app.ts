@@ -73,10 +73,10 @@ async function main() {
 
     const inputData = getInputData(itemDetails)
 
-    return await db.item.create({ data: inputData })
+    return await db.item.create({
+      data: { ...inputData, doi: i.doi as string },
+    })
   })
-
-  return (await Promise.all(createdItems)).map((item) => console.log(item?.doi))
 }
 
 main()
